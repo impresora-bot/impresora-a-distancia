@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Imprimir en lo de la abuela</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    max-width: 480px;
+    margin: 40px auto;
+    padding: 0 20px;
+    color: #1a1a1a;
+  }
+  h1 { font-size: 1.4rem; }
+  .card {
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 16px;
+  }
+  input[type="password"], input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    margin-top: 6px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+  }
+  label { font-size: 0.9rem; font-weight: 600; display: block; margin-top: 14px; }
+  button {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: #1a1a1a;
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #status { margin-top: 14px; font-size: 0.9rem; }
+  .ok { color: #0a7a2f; }
+  .err { color: #b00020; }
+</style>
+</head>
+<body>
+  <h1>🖨️ Imprimir a distancia</h1>
+  <div class="card">
+    <label for="key">Clave de acceso</label>
+    <input type="password" id="key" placeholder="Clave secreta" />
+
+    <label for="file">Archivo a imprimir</label>
+    <input type="file" id="file" />
+
+    <button id="sendBtn">Enviar a imprimir</button>
+    <div id="status"></div>
+  </div>
+
+  <script>
+    const keyInput = document.getElementById("key");
+    const fileInput = document.getElementById("file");
+    const sendBtn = document.getElementById("sendBtn");
+    const statusEl = document.getElementById("status");
+
+    // Recordar la clave en este navegador
+    keyInput.value = localStorage.getItem("printKey") || "";
+
+    sendBtn.addEventListener("click", async () => {
+      const key = keyInput.value.trim();
+      const file = fileInput.files[0];
+
+      if (!key) return setStatus("Falta la clave de acceso", true);
+      if (!file) return setStatus("Elegí un archivo", true);
+
+      localStorage.setItem("printKey", key);
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      sendBtn.disabled = true;
+      setStatus("Enviando...");
+
+      try {
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "x-api-key": key },
+          body: formData,
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          setStatus("✅ Enviado. Se va a imprimir en breve.", false, true);
+          fileInput.value = "";
+        } else {
+          setStatus("Error: " + (data.error || "desconocido"), true);
+        }
+      } catch (e) {
+        setStatus("Error de conexión: " + e.message, true);
+      } finally {
+        sendBtn.disabled = false;
+      }
+    });
+
+    function setStatus(msg, isError = false, isOk = false) {
+      statusEl.textContent = msg;
+      statusEl.className = isError ? "err" : isOk ? "ok" : "";
+    }
+  </script>
+</body>
+</html>
